@@ -1,0 +1,175 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>Simple Map</title>
+    <meta name="viewport" content="initial-scale=1.0">
+    <meta charset="utf-8">
+    <style>
+      /* Always set the map height explicitly to define the size of the div
+       * element that contains the map. */
+      #map {
+        height: 100%;
+      }
+      /* Optional: Makes the sample page fill the window. */
+      html, body {
+        height: 100%;
+        margin: 0;
+        padding: 0;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="map"></div>
+    <script src="https://code.jquery.com/jquery-1.11.1.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/2.1.1/socket.io.js"></script>
+    <script>
+      var map;
+      var aviones = new Array();
+      // INICIALIZAMOS MAPA
+      function initMap() {
+        infoWindow = new google.maps.InfoWindow();
+        var airplane = {lat: -34.443071896944446, lng: -61.76779822722222};
+        map = new google.maps.Map(document.getElementById('map'), {
+          center: airplane,
+          zoom: 5
+        });
+        // CONEXIÓN CLIENTE
+        var socket = io('wss://integracion-tarea-3.herokuapp.com', {path:'/flights'});
+        // MANEJO AEROPUERTOS
+        socket.emit('AIRPORTS');
+        socket.on('AIRPORTS', data => {
+          console.log(data);
+          var data_aeropuertos = data;
+          var count = Object.keys(data_aeropuertos).length;
+          var codigo_aeropuertos = Object.keys(data_aeropuertos);
+          for (var key of codigo_aeropuertos){
+            var aeropuerto = data_aeropuertos[key];
+            var contentString = '<div id="content">'+
+                '<div id="siteNotice">'+
+                '</div>'+
+                '<h3>'+ aeropuerto["name"]+'</h3>'+
+                '<p><b>'+ aeropuerto["airport_code"]+'</b></p>'+
+                '<p>'+ aeropuerto["city"]+', '+aeropuerto["country"]+'</p>'+
+                '</div>'+
+                '</div>';
+            var marker = new google.maps.Marker({
+              position: {lat: aeropuerto["airport_position"][0], lng: aeropuerto["airport_position"][1]},
+              map: map,
+              icon: "https://maps.google.com/mapfiles/kml/pal2/icon48.png",
+              rotation: 45.0
+            });
+            agregarInfo(marker, contentString);
+          };
+        });
+        function agregarInfo(marker, contentString) {
+          var infowindow = new google.maps.InfoWindow({
+            content: contentString
+          });
+          marker.addListener('click', function() {
+            infowindow.open(marker.get('map'), marker);
+          });
+        };
+        // MANEJO VUELOS
+        var marker_aviones = new Array();
+        var info_vuelos = new Array();
+        socket.emit('FLIGHTS');
+        socket.on('FLIGHTS', data => {
+          var flights = data;
+          for (var flight of flights){
+            info_vuelos.push(flight);
+            aviones.push(flight["code"]);
+            var marker = new google.maps.Marker({
+              position: {lat: flight["origin"]["airport_position"][0], lng: flight["origin"]["airport_position"][1]},
+              map: map,
+              title: flight["code"],
+              icon: "https://maps.google.com/mapfiles/kml/pal2/icon56.png",
+              rotation: 90.0
+            });
+            marker_aviones.push(marker);
+            var flightPlanCoordinates = [
+              {lat: flight["origin"]["airport_position"][0], lng: flight["origin"]["airport_position"][1]},
+              {lat: flight["destination"]["airport_position"][0], lng: flight["destination"]["airport_position"][1]}
+            ];
+
+            var flightPath = new google.maps.Polyline({
+              path: flightPlanCoordinates,
+              geodesic: true,
+              strokeColor: '#F00000',
+              strokeOpacity: 1.0,
+              strokeWeight: 2
+            });
+            flightPath.setMap(map);
+          }
+        });
+
+        socket.on('POSITION', data => {
+          var circle = new google.maps.Circle({
+            center: {lat: data["position"][0], lng: data["position"][1]},
+            map: map,
+            radius: 10000,          // IN METERS.
+            fillColor: '#00000',
+            fillOpacity: 1,
+            strokeColor: "#00000",
+            strokeWeight: 0         // DON'T SHOW CIRCLE BORDER.
+          });
+          console.log('moviendose' + data["code"])
+          codigo = data['code']
+          var avion = null
+          console.log(marker_aviones.legth)
+          for (marker of marker_aviones){
+            if (marker.getTitle() == data['code']) {
+              console.log('encontre a'+marker.getTitle())
+              avion = marker;
+              avion.setMap(null);
+            };
+          };
+          var i = marker_aviones.indexOf(avion);
+          console.log(marker_aviones)
+          var nuevo = new google.maps.Marker({
+            position: {lat: data["position"][0], lng: data["position"][1]},
+            map: map,
+            title: data["code"],
+            icon: "https://maps.google.com/mapfiles/kml/pal2/icon56.png"
+          });
+          marker_aviones[i] = nuevo;
+
+          agregarInfoAvion(nuevo, info_vuelos);
+        });
+
+        function agregarInfoAvion(marker, info_vuelos) {
+          var info = 0;
+          for (vuelo of info_vuelos){
+            //console.log('VUELO!!!!!!!!')
+            //console.log(vuelo)
+            if (vuelo['code'] == marker.getTitle()){
+              info = vuelo;
+            }
+          }
+            if (info != 0){
+            var contentString = '<div id="content">'+
+                '<div id="siteNotice">'+
+                '</div>'+
+                '<p><b>'+ info["code"]+'</b></p>'+
+                '<p><b>'+ info["plane"]+'</b></p>'+
+                '<p>'+'Asientos '+ info["seats"]+'</p>'+
+                '<p>'+'Aerolínea '+ info["airline"]+'</p>'+
+                '<p>'+'Origen: '+ info["origin"]["city"]+', '+info["origin"]["country"] +'</p>'+
+                '<p>'+'Destino: '+ info["destination"]["city"]+', '+info["destination"]["country"] +'</p>'+
+                '<p>'+'Posición: '+ marker.getPosition()+'</p>'+
+                '</div>'+
+                '</div>';
+            var infowindow = new google.maps.InfoWindow({
+              content: contentString
+            });
+            marker.addListener('click', function() {
+              infowindow.open(marker.get('map'), marker);
+            });
+          }
+        };
+
+      }
+    </script>
+    <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyB06oYcdN4S7b5g-WrphDOogwaVnLyh2DM&callback=initMap"
+    async defer></script>
+  </body>
+</html>

@@ -1,24 +1,13 @@
-# README
+# chat-example
 
-This README would normally document whatever steps are necessary to get the
-application up and running.
+This is the source code for a very simple chat example used for
+the [Getting Started](http://socket.io/get-started/chat/) guide
+of the Socket.IO website.
 
-Things you may want to cover:
+Please refer to it to learn how to run this application.
 
-* Ruby version
+You can also spin up a free Heroku dyno to test it out:
 
-* System dependencies
+[![Deploy](https://www.herokucdn.com/deploy/button.png)](https://heroku.com/deploy?template=https://github.com/socketio/chat-example)
 
-* Configuration
-
-* Database creation
-
-* Database initialization
-
-* How to run the test suite
-
-* Services (job queues, cache servers, search engines, etc.)
-
-* Deployment instructions
-
-* ...
+Besides, the application is deployed on [Now](https://zeit.co/now): https://socketio-chat-example.now.sh/
